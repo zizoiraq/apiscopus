@@ -1,813 +1,96 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scopus Journal Finder 2026</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --navy: #0a1628;
-            --accent: #2563eb;
-            --accent2: #38bdf8;
-            --gold: #f59e0b;
-            --red: #ef4444;
-            --green: #22c55e;
-            --white: #f8fafc;
-            --gray: #94a3b8;
-            --border: rgba(255,255,255,0.08);
-            --card: rgba(17,24,39,0.88);
-        }
-        * { margin:0; padding:0; box-sizing:border-box; }
+const fetch = require('node-fetch');
 
-        body {
-            font-family: 'Cairo', sans-serif;
-            background: var(--navy);
-            color: var(--white);
-            min-height: 100vh;
-        }
-        body::before {
-            content:''; position:fixed; inset:0;
-            background:
-                radial-gradient(ellipse 80% 50% at 20% 0%, rgba(37,99,235,0.15) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(56,189,248,0.08) 0%, transparent 60%);
-            pointer-events:none; z-index:0;
-        }
-        .grid-bg {
-            position:fixed; inset:0;
-            background-image:
-                linear-gradient(rgba(37,99,235,0.035) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(37,99,235,0.035) 1px, transparent 1px);
-            background-size:44px 44px;
-            pointer-events:none; z-index:0;
-        }
-
-        header {
-            position:relative; z-index:10;
-            padding:1.2rem 2rem;
-            border-bottom:1px solid var(--border);
-            background:rgba(10,22,40,0.92);
-            backdrop-filter:blur(20px);
-            display:flex; justify-content:space-between;
-            align-items:center; flex-wrap:wrap; gap:1rem;
-        }
-        .logo-area { display:flex; align-items:center; gap:12px; }
-        .logo-icon {
-            width:48px; height:48px;
-            background:linear-gradient(135deg,var(--accent),var(--accent2));
-            border-radius:13px; display:flex; align-items:center;
-            justify-content:center; font-size:1.5rem;
-            box-shadow:0 0 22px rgba(37,99,235,0.45);
-        }
-        .logo-text h1 {
-            font-size:1.45rem; font-weight:900;
-            background:linear-gradient(135deg,#fff,var(--accent2));
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-        }
-        .logo-text p { font-size:0.74rem; color:var(--gray); }
-        .uni-badge {
-            text-align:center;
-            background:rgba(37,99,235,0.1);
-            border:1px solid rgba(37,99,235,0.3);
-            padding:0.55rem 1.3rem; border-radius:11px;
-        }
-        .uni-badge .u1 { font-weight:700; font-size:0.9rem; color:var(--accent2); }
-        .uni-badge .u2 { font-size:0.72rem; color:var(--gray); }
-
-        main {
-            position:relative; z-index:1;
-            max-width:960px; margin:0 auto; padding:2.5rem 1.5rem 4rem;
-        }
-
-        .hero { text-align:center; margin-bottom:2rem; }
-        .hero h2 { font-size:2.1rem; font-weight:900; line-height:1.25; margin-bottom:.75rem; }
-        .hero h2 span {
-            background:linear-gradient(90deg,var(--accent2),var(--gold));
-            -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-        }
-        .hero p { color:var(--gray); font-size:.93rem; max-width:540px; margin:0 auto; line-height:1.75; }
-
-        /* API KEY */
-        .api-setup {
-            background:var(--card);
-            border:1px solid rgba(245,158,11,0.3);
-            border-radius:16px; padding:1.5rem;
-            margin-bottom:1.8rem;
-            backdrop-filter:blur(20px);
-        }
-        .api-setup-title {
-            font-size:.85rem; color:var(--gold);
-            font-weight:700; margin-bottom:.8rem;
-        }
-        .api-row { display:flex; gap:.75rem; }
-        .api-input {
-            flex:1; padding:.75rem 1.2rem;
-            background:rgba(255,255,255,0.05);
-            border:1px solid rgba(255,255,255,0.12);
-            border-radius:10px; color:white;
-            font-family:'IBM Plex Mono',monospace; font-size:.9rem;
-            direction:ltr; letter-spacing:1px; transition:all .3s;
-        }
-        .api-input:focus {
-            outline:none; border-color:var(--gold);
-            box-shadow:0 0 0 3px rgba(245,158,11,0.12);
-        }
-        .save-btn {
-            padding:.75rem 1.5rem;
-            background:linear-gradient(135deg,var(--gold),#d97706);
-            border:none; border-radius:10px; color:#1a1a1a;
-            font-family:'Cairo',sans-serif; font-size:.9rem; font-weight:700;
-            cursor:pointer; white-space:nowrap; transition:all .3s;
-        }
-        .save-btn:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(245,158,11,.4); }
-        .api-status {
-            margin-top:.7rem; font-size:.78rem;
-            display:inline-flex; align-items:center; gap:6px;
-            padding:.4rem .9rem; border-radius:50px;
-        }
-        .api-status.ok   { background:rgba(34,197,94,.12); color:var(--green); }
-        .api-status.bad  { background:rgba(239,68,68,.12);  color:var(--red);   }
-        .api-status.warn { background:rgba(245,158,11,.12); color:var(--gold);  }
-
-        /* DEBUG PANEL */
-        .debug-panel {
-            background:rgba(0,0,0,0.4);
-            border:1px solid rgba(245,158,11,0.2);
-            border-radius:12px; padding:1rem 1.2rem;
-            margin-bottom:1.5rem; font-family:'IBM Plex Mono',monospace;
-            font-size:.75rem; color:#94a3b8;
-            display:none;
-        }
-        .debug-panel.show { display:block; }
-        .debug-panel .d-title { color:var(--gold); font-weight:700; margin-bottom:.5rem; }
-        .debug-panel .d-url { color:#7dd3fc; word-break:break-all; }
-        .debug-panel .d-resp { color:#86efac; margin-top:.5rem; }
-        .debug-panel .d-err  { color:#fca5a5; margin-top:.5rem; }
-
-        /* SEARCH */
-        .search-box {
-            background:var(--card);
-            border:1px solid rgba(37,99,235,.35);
-            border-radius:18px; padding:1.8rem;
-            margin-bottom:1.5rem;
-            box-shadow:0 20px 60px rgba(0,0,0,.3);
-            backdrop-filter:blur(20px);
-        }
-        .search-label {
-            font-size:.82rem; color:var(--accent2);
-            font-weight:600; margin-bottom:.75rem;
-        }
-        .search-row { display:flex; gap:.75rem; }
-        .search-input {
-            flex:1; padding:.9rem 1.3rem;
-            background:rgba(255,255,255,.05);
-            border:1px solid rgba(255,255,255,.1);
-            border-radius:10px; color:white;
-            font-family:'Cairo',sans-serif; font-size:1rem;
-            transition:all .3s; direction:ltr; text-align:right;
-        }
-        .search-input::placeholder { color:var(--gray); }
-        .search-input:focus {
-            outline:none; border-color:var(--accent);
-            box-shadow:0 0 0 3px rgba(37,99,235,.15);
-        }
-        .search-btn {
-            padding:.9rem 1.8rem;
-            background:linear-gradient(135deg,var(--accent),#1d4ed8);
-            border:none; border-radius:10px; color:white;
-            font-family:'Cairo',sans-serif; font-size:1rem;
-            font-weight:700; cursor:pointer; white-space:nowrap;
-            display:flex; align-items:center; gap:7px;
-            box-shadow:0 4px 15px rgba(37,99,235,.4); transition:all .3s;
-        }
-        .search-btn:hover:not(:disabled) { transform:translateY(-2px); }
-        .search-btn:disabled { opacity:.55; cursor:not-allowed; transform:none; }
-
-        .tabs { display:flex; gap:.5rem; margin-top:1rem; flex-wrap:wrap; }
-        .tab {
-            padding:.4rem 1.2rem;
-            background:rgba(255,255,255,.05);
-            border:1px solid var(--border); border-radius:50px;
-            color:var(--gray); font-family:'Cairo',sans-serif;
-            font-size:.82rem; cursor:pointer; transition:all .25s;
-        }
-        .tab.active { background:var(--accent); color:white; border-color:var(--accent); }
-
-        .results-bar {
-            display:flex; justify-content:space-between;
-            align-items:center; margin:1rem 0;
-            flex-wrap:wrap; gap:.5rem;
-        }
-        .r-pill {
-            background:rgba(255,255,255,.08);
-            padding:.4rem 1.1rem; border-radius:50px;
-            font-size:.82rem; color:var(--white);
-        }
-
-        /* LOADER */
-        .loader { text-align:center; padding:3rem; animation:fadeIn .3s ease; }
-        .spinner {
-            width:46px; height:46px;
-            border:3px solid rgba(37,99,235,.2);
-            border-top-color:var(--accent); border-radius:50%;
-            animation:spin .75s linear infinite; margin:0 auto 1rem;
-        }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
-        .loader p { color:var(--gray); font-size:.92rem; }
-        .loader small { font-size:.78rem; color:#475569; display:block; margin-top:4px; }
-
-        /* GRID */
-        .journals-grid {
-            display:grid;
-            grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
-            gap:1.3rem;
-        }
-
-        /* CARD */
-        .j-card {
-            background:rgba(17,24,39,.85);
-            border:1px solid var(--border);
-            border-right:4px solid var(--accent);
-            border-radius:16px; padding:1.4rem;
-            transition:all .3s; animation:fadeIn .4s ease;
-        }
-        .j-card:hover { transform:translateY(-4px); box-shadow:0 15px 35px rgba(0,0,0,.35); }
-        .j-card.blacklisted { border-right-color:var(--red); background:rgba(239,68,68,.06); }
-        .j-card.conference  { border-right-color:var(--green); }
-
-        .j-head {
-            display:flex; justify-content:space-between;
-            align-items:flex-start; gap:.8rem; margin-bottom:.9rem;
-        }
-        .j-title { font-size:1rem; font-weight:700; color:var(--white); line-height:1.4; flex:1; }
-        .j-badge {
-            padding:.18rem .7rem; border-radius:50px;
-            font-size:.68rem; font-weight:700; white-space:nowrap;
-        }
-        .b-journal { background:rgba(37,99,235,.18); color:var(--accent2); border:1px solid rgba(37,99,235,.35); }
-        .b-conf    { background:rgba(34,197,94,.18);  color:var(--green);   border:1px solid rgba(34,197,94,.35); }
-        .b-black   { background:rgba(239,68,68,.18);  color:var(--red);     border:1px solid rgba(239,68,68,.35); }
-
-        .bl-tag {
-            display:inline-flex; align-items:center; gap:5px;
-            background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3);
-            color:var(--red); padding:.25rem .7rem; border-radius:50px;
-            font-size:.72rem; font-weight:700; margin-bottom:.7rem;
-        }
-        .j-ids {
-            display:flex; flex-wrap:wrap; gap:.4rem;
-            margin-bottom:.7rem; font-size:.8rem; color:var(--gray);
-        }
-        .j-ids span { display:flex; align-items:center; gap:4px; }
-        .j-publisher {
-            font-size:.82rem; color:var(--gray);
-            padding:.5rem 0; border-bottom:1px solid var(--border);
-            margin-bottom:.7rem; display:flex; align-items:center; gap:6px;
-        }
-        .j-metrics { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.9rem; }
-        .j-metric {
-            background:rgba(255,255,255,.05); border:1px solid var(--border);
-            padding:.2rem .6rem; border-radius:6px;
-            font-size:.75rem; color:var(--accent2);
-            font-family:'IBM Plex Mono',monospace;
-        }
-        .j-metric.oa { color:var(--green); }
-        .j-metric.bl { color:var(--red); }
-        .j-subjects { display:flex; flex-wrap:wrap; gap:.3rem; margin-bottom:.9rem; }
-        .j-subj {
-            background:rgba(37,99,235,.1); color:var(--accent2);
-            border:1px solid rgba(37,99,235,.2);
-            padding:.15rem .55rem; border-radius:4px; font-size:.72rem;
-        }
-        .j-footer {
-            display:flex; gap:.5rem;
-            padding-top:.8rem; border-top:1px solid var(--border);
-        }
-        .j-btn {
-            flex:1; padding:.5rem .8rem; border-radius:8px;
-            font-family:'Cairo',sans-serif; font-size:.8rem; font-weight:600;
-            cursor:pointer; transition:all .25s;
-            display:flex; align-items:center; justify-content:center; gap:5px;
-        }
-        .j-btn-primary { background:var(--accent); border:none; color:white; }
-        .j-btn-primary:hover { background:#1d4ed8; }
-        .j-btn-outline { background:transparent; border:1px solid rgba(37,99,235,.4); color:var(--accent2); }
-        .j-btn-outline:hover { background:rgba(37,99,235,.15); }
-
-        .no-results {
-            grid-column:1/-1; text-align:center; padding:3rem;
-            background:rgba(17,24,39,.6); border:1px solid var(--border);
-            border-radius:16px; animation:fadeIn .3s ease;
-        }
-        .no-results .n-icon { font-size:3rem; margin-bottom:1rem; }
-        .no-results h3 { margin-bottom:.5rem; }
-        .no-results p { color:var(--gray); font-size:.9rem; }
-
-        /* MODAL */
-        .modal-overlay {
-            position:fixed; inset:0; background:rgba(0,0,0,.7);
-            z-index:2000; display:flex; align-items:center;
-            justify-content:center; padding:1rem; animation:fadeIn .2s ease;
-        }
-        .modal-box {
-            background:#111827; border:1px solid var(--border);
-            border-radius:18px; padding:2rem;
-            max-width:620px; width:100%; max-height:80vh; overflow-y:auto;
-        }
-        .modal-head {
-            display:flex; justify-content:space-between;
-            align-items:center; margin-bottom:1.5rem;
-        }
-        .modal-head h3 { color:var(--accent2); font-size:1.1rem; }
-        .modal-close { background:none; border:none; color:var(--gray); font-size:1.5rem; cursor:pointer; }
-        .modal-close:hover { color:var(--white); }
-        .d-row {
-            display:flex; padding:.6rem 0;
-            border-bottom:1px solid rgba(255,255,255,.04); gap:1rem;
-        }
-        .d-row:last-child { border-bottom:none; }
-        .d-k { width:160px; font-size:.78rem; color:var(--gray); flex-shrink:0; }
-        .d-v { flex:1; font-size:.88rem; color:var(--white); font-weight:500; word-break:break-all; }
-
-        .toast {
-            position:fixed; bottom:24px; left:50%;
-            transform:translateX(-50%);
-            padding:.75rem 1.5rem; border-radius:50px;
-            font-size:.88rem; font-weight:600; z-index:9999;
-            animation:fadeIn .3s ease;
-        }
-        .toast.ok  { background:var(--green); color:#0a1628; }
-        .toast.err { background:var(--red);   color:white;   }
-
-        footer {
-            position:relative; z-index:1; text-align:center; padding:1.8rem;
-            color:var(--gray); font-size:.79rem; border-top:1px solid var(--border);
-        }
-
-        @media(max-width:580px){
-            .search-row,.api-row { flex-direction:column; }
-            .journals-grid { grid-template-columns:1fr; }
-            .hero h2 { font-size:1.7rem; }
-        }
-    </style>
-</head>
-<body>
-<div class="grid-bg"></div>
-
-<header>
-    <div class="logo-area">
-        <div class="logo-icon">🔬</div>
-        <div class="logo-text">
-            <h1>Scopus Journal Finder 2026</h1>
-            <p>البحث المباشر في مجلات Scopus — بيانات حية</p>
-        </div>
-    </div>
-    <div class="uni-badge">
-        <div class="u1">الجامعة التقنية الشمالية</div>
-        <div class="u2">الكلية التقنية الهندسية - الموصل</div>
-        <div class="u2" style="margin-top:2px">تصميم: عزام عصام</div>
-    </div>
-</header>
-
-<main>
-    <div class="hero">
-        <h2>ابحث عن <span>مجلتك العلمية</span></h2>
-        <p>أدخل اسم المجلة أو ISSN — يتصل مباشرةً بـ Scopus API ويعرض بيانات حقيقية محدّثة</p>
-    </div>
-
-    <!-- مفتاح API -->
-    <div class="api-setup">
-        <div class="api-setup-title">🔑 مفتاح Scopus API</div>
-        <div class="api-row">
-            <input type="text" class="api-input" id="apiKeyInput"
-                   placeholder="أدخل مفتاح API هنا…" autocomplete="off" spellcheck="false">
-            <button class="save-btn" onclick="saveKey()">
-                <i class="fas fa-save"></i> حفظ
-            </button>
-        </div>
-        <div id="apiStatus" class="api-status warn">
-            <i class="fas fa-exclamation-triangle"></i> لم يتم إدخال مفتاح API بعد
-        </div>
-    </div>
-
-    <!-- لوحة Debug -->
-    <div class="debug-panel" id="debugPanel">
-        <div class="d-title">🔧 Debug — آخر طلب API</div>
-        <div class="d-url" id="dUrl"></div>
-        <div id="dResp"></div>
-    </div>
-
-    <!-- البحث -->
-    <div class="search-box">
-        <div class="search-label">🔍 ابحث في مجلات Scopus</div>
-        <div class="search-row">
-            <input type="text" class="search-input" id="searchInput"
-                   placeholder="مثال: Nature  |  Chemical Engineering  |  0028-0836"
-                   autocomplete="off" spellcheck="false">
-            <button class="search-btn" id="searchBtn" onclick="doSearch()">
-                <span id="btnIcon">🔍</span>
-                <span id="btnText">بحث</span>
-            </button>
-        </div>
-        <div class="tabs">
-            <button class="tab active" data-type="all">📋 الكل</button>
-            <button class="tab" data-type="journal">📚 مجلات</button>
-            <button class="tab" data-type="conference proceedings">🎤 مؤتمرات</button>
-            <button class="tab" data-type="book series">📖 سلاسل كتب</button>
-        </div>
-    </div>
-
-    <div class="results-bar" id="resultsBar" style="display:none">
-        <div class="r-pill" id="rCount"></div>
-        <div class="r-pill" id="rTime"></div>
-    </div>
-
-    <div class="journals-grid" id="grid">
-        <div class="no-results">
-            <div class="n-icon">🔬</div>
-            <h3>جاهز للبحث</h3>
-            <p>أدخل مفتاح API ثم ابحث عن أي مجلة علمية</p>
-        </div>
-    </div>
-</main>
-
-<footer>
-    <p>Scopus Serial Title API © Elsevier &nbsp;|&nbsp; القائمة السوداء: وزارة التعليم العالي - العراق</p>
-</footer>
-
-<!-- Modal -->
-<div id="modalOverlay" class="modal-overlay" style="display:none" onclick="closeModal(event)">
-    <div class="modal-box" onclick="event.stopPropagation()">
-        <div class="modal-head">
-            <h3><i class="fas fa-info-circle"></i> تفاصيل المجلة</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
-        </div>
-        <div id="modalBody"></div>
-    </div>
-</div>
-
-<script>
-// ============================================================
-//  القائمة السوداء
-// ============================================================
-const BLACKLIST = [
-    "OMICS Publishing Group","OMICS International",
-    "Scientific Research Publishing","SCIRP",
-    "Academic Journals","Medwell Journals",
-    "Asian Network for Scientific Information","ANSInet",
-    "Global Journals","World Applied Sciences Journal",
-    "Middle-East Journal","International Journal of Academic Research",
-    "Journal of Applied Sciences Research","Research Journal of Applied Sciences",
-    "Journal of American Science","Life Science Journal","Nature and Science",
-    "Pakistan Journal of Biological Sciences","European Journal of Scientific Research",
-    "American Journal of Applied Sciences",
-    "World Academy of Science, Engineering and Technology","WASET",
-    "International Journal of Enhanced Research","IJER",
-    "International Research Journal","Global Research and Development Journal",
-];
-
-// ============================================================
-//  الحالة
-// ============================================================
-let API_KEY     = localStorage.getItem('scopusApiKey') || '';
-let currentType = 'all';
-let lastEntries = [];
-
-// ============================================================
-//  تهيئة
-// ============================================================
-window.addEventListener('DOMContentLoaded', () => {
-    if (API_KEY) {
-        document.getElementById('apiKeyInput').value = API_KEY;
-        setStatus('ok', '✅ مفتاح API محفوظ وجاهز');
+exports.handler = async (event) => {
+    // السماح بـ CORS
+    const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Content-Type': 'application/json'
+    };
+    
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 204, headers };
     }
-
-    document.querySelectorAll('.tab').forEach(t => {
-        t.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-            t.classList.add('active');
-            currentType = t.dataset.type;
-            if (lastEntries.length) renderCards(lastEntries);
-        });
-    });
-
-    document.getElementById('searchInput').addEventListener('keydown', e => {
-        if (e.key === 'Enter') doSearch();
-    });
-});
-
-// ============================================================
-//  حفظ المفتاح
-// ============================================================
-function saveKey() {
-    const v = document.getElementById('apiKeyInput').value.trim();
-    if (!v) { toast('أدخل مفتاح API أولاً', 'err'); return; }
-    API_KEY = v;
-    localStorage.setItem('scopusApiKey', v);
-    setStatus('ok', '✅ تم الحفظ بنجاح');
-    toast('تم حفظ مفتاح API', 'ok');
-}
-
-function setStatus(cls, msg) {
-    const el = document.getElementById('apiStatus');
-    el.className = 'api-status ' + cls;
-    el.innerHTML = msg;
-}
-
-// ============================================================
-//  البحث الرئيسي
-//  نفس نمط fetch الذي يعمل في موقعك تماماً
-//  (header: X-ELS-APIKey) + Serial Title API
-// ============================================================
-async function doSearch() {
-    if (!API_KEY) { toast('أدخل مفتاح API أولاً', 'err'); return; }
-
-    const q = document.getElementById('searchInput').value.trim();
-    if (!q)  { toast('أدخل اسم المجلة أو ISSN', 'err'); return; }
-
-    setBusy(true);
-    document.getElementById('resultsBar').style.display = 'none';
-    document.getElementById('grid').innerHTML = loaderHTML();
-
-    // إخفاء debug
-    document.getElementById('debugPanel').classList.remove('show');
-
-    const t0 = performance.now();
-
+    
     try {
-        const isISSN = /^\d{4}-?\d{3}[\dXx]$/.test(q);
-        let url;
-
-        if (isISSN) {
-            // بحث بـ ISSN
-            const cleanISSN = q.replace('-','');
-            url = `https://api.elsevier.com/content/serial/title/issn/${cleanISSN}?view=ENHANCED`;
-        } else {
-            // بحث بالعنوان
-            url = `https://api.elsevier.com/content/serial/title?title=${encodeURIComponent(q)}&count=25&view=ENHANCED`;
+        const { apiKey, searchTerm } = JSON.parse(event.body);
+        
+        if (!apiKey || !searchTerm) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'API Key ومصطلح البحث مطلوبان' })
+            };
         }
-
-        // ← نفس نمط fetch الذي يعمل في موقعك
+        
+        // تحديد نوع البحث (ISSN أو اسم)
+        let query = '';
+        if (/^\d{4}-\d{3}[\dX]$/i.test(searchTerm) || /^\d{7,8}$/.test(searchTerm)) {
+            query = `ISSN(${searchTerm})`;
+        } else {
+            query = `SRCTITLE(${encodeURIComponent(searchTerm)})`;
+        }
+        
+        // استخدام Scopus Serial Title API
+        const url = `https://api.elsevier.com/content/serial/title?query=${query}&view=STANDARD`;
+        
         const response = await fetch(url, {
-            method: 'GET',
             headers: {
-                'Accept'      : 'application/json',
-                'X-ELS-APIKey': API_KEY
+                'Accept': 'application/json',
+                'X-ELS-APIKey': apiKey
             }
         });
-
-        // عرض debug
-        showDebug(url, response.status, response.ok);
-
-        if (response.status === 404) {
-            lastEntries = [];
-            renderCards([]);
-            document.getElementById('resultsBar').style.display = 'flex';
-            document.getElementById('rCount').textContent = '📊 0 نتيجة';
-            document.getElementById('rTime').textContent  = `⏱ ${(performance.now()-t0).toFixed(0)} ms`;
-            return;
-        }
-
+        
         if (!response.ok) {
-            // عرض نص الخطأ للمساعدة في التشخيص
-            const errText = await response.text();
-            showDebugError(errText);
-            throw new Error(`HTTP ${response.status} — ${response.statusText}`);
+            return {
+                statusCode: response.status,
+                headers,
+                body: JSON.stringify({ error: `خطأ ${response.status}: ${response.statusText}` })
+            };
         }
-
-        const data    = await response.json();
-        const entries = data?.['serial-metadata-response']?.entry ?? [];
-
-        lastEntries = entries;
-        const ms = (performance.now()-t0).toFixed(0);
-
-        document.getElementById('resultsBar').style.display = 'flex';
-        document.getElementById('rCount').textContent = `📊 ${entries.length} مجلة`;
-        document.getElementById('rTime').textContent  = `⏱ ${ms} مللي ثانية`;
-
-        renderCards(entries);
-
-    } catch(e) {
-        console.error(e);
-        if (e.message.includes('401') || e.message.includes('403')) {
-            setStatus('bad', '❌ مفتاح API غير صالح أو منتهي');
+        
+        const data = await response.json();
+        const entries = data['serial-metadata-response']?.entry;
+        
+        if (!entries || (Array.isArray(entries) && entries.length === 0)) {
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ found: false })
+            };
         }
-        document.getElementById('grid').innerHTML = `
-            <div class="no-results">
-                <div class="n-icon">❌</div>
-                <h3>${e.message}</h3>
-                <p style="margin-top:.5rem">
-                    تأكد من صحة المفتاح وأن اشتراكك يشمل Serial Title API
-                    <br><small style="color:#64748b;margin-top:4px;display:block">
-                    إذا كان المفتاح يعمل مع Scopus Search API فقط، فهو لا يشمل Serial Title API
-                    </small>
-                </p>
-            </div>`;
-    } finally {
-        setBusy(false);
+        
+        const journal = Array.isArray(entries) ? entries[0] : entries;
+        
+        // استخراج CiteScore
+        let citeScore = '';
+        if (journal['citeScoreYearInfoList']) {
+            citeScore = journal['citeScoreYearInfoList']['citeScoreCurrentMetric'] || '';
+        }
+        
+        const result = {
+            found: true,
+            journal: {
+                title: journal['dc:title'] || '',
+                issn: journal['prism:issn'] || '',
+                publisher: journal['dc:publisher'] || '',
+                coverage: `${journal['coverageStartYear'] || ''} - ${journal['coverageEndYear'] || 'حالياً'}`,
+                citeScore: citeScore,
+                url: `https://www.scopus.com/source/sourceInfo.url?sourceId=${journal['source-id'] || ''}`
+            }
+        };
+        
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify(result)
+        };
+        
+    } catch (error) {
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: error.message })
+        };
     }
-}
-
-// ============================================================
-//  عرض البطاقات
-// ============================================================
-function renderCards(entries) {
-    const grid = document.getElementById('grid');
-
-    let filtered = entries;
-    if (currentType !== 'all') {
-        filtered = entries.filter(e =>
-            (e['prism:aggregationType']||'').toLowerCase() === currentType
-        );
-    }
-
-    if (!filtered.length) {
-        grid.innerHTML = `
-            <div class="no-results">
-                <div class="n-icon">🔍</div>
-                <h3>لا توجد نتائج</h3>
-                <p>جرّب تغيير التبويب أو كلمة البحث</p>
-            </div>`;
-        return;
-    }
-
-    grid.innerHTML = filtered.map(buildCard).join('');
-}
-
-function buildCard(e) {
-    const title     = e['dc:title']              || 'بدون عنوان';
-    const publisher = e['dc:publisher']           || '';
-    const issn      = e['prism:issn']             || '';
-    const eissn     = e['prism:eIssn']            || '';
-    const type      = (e['prism:aggregationType']||'').toLowerCase();
-    const sourceId  = e['source-id']              || '';
-    const coverS    = e['coverageStartYear']      || '';
-    const coverE    = e['coverageEndYear']        || '';
-    const oa        = e['openaccess'];
-
-    const cs    = e?.citeScoreYearInfoList?.citeScoreCurrentMetric;
-    const csYr  = e?.citeScoreYearInfoList?.citeScoreCurrentMetricYear || '';
-    const sjr   = e?.SJRList?.SJR?.[0]?.['$'];
-    const snip  = e?.SNIPList?.SNIP?.[0]?.['$'];
-    const subjs = (e['subject-area']||[]).map(s=>s['$']).filter(Boolean).slice(0,4);
-
-    const blHit = checkBL(title, publisher);
-    const coverage = [coverS, coverE||'الآن'].filter(Boolean).join(' – ');
-
-    let typeBadge = '📚 مجلة', badgeClass = 'b-journal', cardExtra = '';
-    if (type === 'conference proceedings') { typeBadge = '🎤 مؤتمر'; badgeClass = 'b-conf'; cardExtra = 'conference'; }
-    else if (type === 'book series')       { typeBadge = '📖 سلسلة'; }
-
-    return `
-    <div class="j-card ${blHit?'blacklisted':cardExtra}">
-        ${blHit?`<div class="bl-tag">🚫 القائمة المحظورة — ${esc(blHit)}</div>`:''}
-        <div class="j-head">
-            <div class="j-title">${esc(title)}</div>
-            <span class="j-badge ${blHit?'b-black':badgeClass}">${blHit?'⛔ محظورة':typeBadge}</span>
-        </div>
-        <div class="j-ids">
-            ${issn  ?`<span><i class="fas fa-barcode"></i> ISSN: ${issn}</span>`:''}
-            ${eissn ?`<span><i class="fas fa-qrcode"></i> E-ISSN: ${eissn}</span>`:''}
-            ${coverage?`<span><i class="fas fa-calendar-alt"></i> ${coverage}</span>`:''}
-        </div>
-        ${publisher?`<div class="j-publisher"><i class="fas fa-building"></i> ${esc(publisher)}</div>`:''}
-        <div class="j-metrics">
-            ${cs   ?`<span class="j-metric">CiteScore ${csYr}: ${cs}</span>`:''}
-            ${sjr  ?`<span class="j-metric">SJR: ${sjr}</span>`:''}
-            ${snip ?`<span class="j-metric">SNIP: ${snip}</span>`:''}
-            ${oa==='1'?`<span class="j-metric oa">🔓 Gold OA</span>`:''}
-            ${oa==='2'?`<span class="j-metric oa">🟢 Green OA</span>`:''}
-            ${blHit?`<span class="j-metric bl">🚫 محظورة</span>`:''}
-        </div>
-        ${subjs.length?`<div class="j-subjects">${subjs.map(s=>`<span class="j-subj">${esc(s)}</span>`).join('')}</div>`:''}
-        <div class="j-footer">
-            <button class="j-btn j-btn-primary" onclick='openModal(${JSON.stringify(JSON.stringify(e))})'>
-                <i class="fas fa-info-circle"></i> تفاصيل
-            </button>
-            ${sourceId?`<button class="j-btn j-btn-outline"
-                onclick="window.open('https://www.scopus.com/sourceid/${sourceId}','_blank')">
-                <i class="fas fa-external-link-alt"></i> Scopus
-            </button>`:''}
-        </div>
-    </div>`;
-}
-
-// ============================================================
-//  Modal
-// ============================================================
-function openModal(jsonStr) {
-    const e = JSON.parse(jsonStr);
-    const blHit = checkBL(e['dc:title']||'', e['dc:publisher']||'');
-
-    const rows = [
-        ['عنوان المجلة',  e['dc:title']],
-        ['الناشر',         e['dc:publisher']],
-        ['نوع المصدر',     e['prism:aggregationType']],
-        ['ISSN',           e['prism:issn']],
-        ['E-ISSN',         e['prism:eIssn']],
-        ['Source ID',      e['source-id']],
-        ['التغطية',        [e['coverageStartYear'], e['coverageEndYear']||'الآن'].filter(Boolean).join(' – ')],
-        ['Open Access',    fmtOA(e['openaccess'])],
-        ['CiteScore',      e?.citeScoreYearInfoList?.citeScoreCurrentMetric
-                            ? `${e.citeScoreYearInfoList.citeScoreCurrentMetric} (${e.citeScoreYearInfoList.citeScoreCurrentMetricYear})`
-                            : null],
-        ['SJR',            e?.SJRList?.SJR?.[0]?.['$']],
-        ['SNIP',           e?.SNIPList?.SNIP?.[0]?.['$']],
-    ];
-
-    let html = rows.filter(([,v])=>v).map(([k,v])=>`
-        <div class="d-row">
-            <div class="d-k">${k}</div>
-            <div class="d-v">${esc(String(v))}</div>
-        </div>`).join('');
-
-    const subjs = (e['subject-area']||[]).map(s=>s['$']).filter(Boolean);
-    if (subjs.length) html += `
-        <div class="d-row">
-            <div class="d-k">التخصصات</div>
-            <div class="d-v">${subjs.map(s=>`<span class="j-subj" style="margin:2px">${esc(s)}</span>`).join('')}</div>
-        </div>`;
-
-    html += `
-        <div class="d-row">
-            <div class="d-k">حالة وزارة التعليم</div>
-            <div class="d-v" style="color:${blHit?'var(--red)':'var(--green)'};font-weight:700">
-                ${blHit?'🚫 محظورة — '+esc(blHit):'✅ غير مدرجة في القائمة السوداء'}
-            </div>
-        </div>`;
-
-    document.getElementById('modalBody').innerHTML = html;
-    document.getElementById('modalOverlay').style.display = 'flex';
-}
-
-function closeModal(e) {
-    if (!e || e.target === document.getElementById('modalOverlay'))
-        document.getElementById('modalOverlay').style.display = 'none';
-}
-
-// ============================================================
-//  Debug helpers
-// ============================================================
-function showDebug(url, status, ok) {
-    const p = document.getElementById('debugPanel');
-    p.classList.add('show');
-    document.getElementById('dUrl').textContent  = '🌐 URL: ' + url;
-    document.getElementById('dResp').className   = ok ? 'd-resp' : 'd-err';
-    document.getElementById('dResp').textContent = `📡 HTTP Status: ${status} — ${ok ? 'OK ✅' : 'Error ❌'}`;
-}
-
-function showDebugError(text) {
-    const el = document.getElementById('dResp');
-    el.className = 'd-err';
-    el.textContent += '\n💬 Response: ' + text.substring(0,300);
-}
-
-// ============================================================
-//  مساعدات
-// ============================================================
-function checkBL(title, pub) {
-    const hay = (title+' '+pub).toLowerCase();
-    for (const item of BLACKLIST)
-        if (hay.includes(item.toLowerCase())) return item;
-    return null;
-}
-
-function fmtOA(v) {
-    if (v==='1') return 'نعم (Gold OA)';
-    if (v==='2') return 'نعم (Green OA)';
-    return 'لا';
-}
-
-function esc(s) {
-    if (!s) return '';
-    return String(s)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function loaderHTML() {
-    return `<div class="no-results loader" style="grid-column:1/-1">
-        <div class="spinner"></div>
-        <p>يتصل بـ Scopus Serial Title API…</p>
-        <small>بيانات المجلات مباشرة</small>
-    </div>`;
-}
-
-function setBusy(on) {
-    document.getElementById('searchBtn').disabled = on;
-    document.getElementById('btnIcon').textContent = on ? '⏳' : '🔍';
-    document.getElementById('btnText').textContent  = on ? 'جاري البحث…' : 'بحث';
-}
-
-function toast(msg, type) {
-    const t = document.createElement('div');
-    t.className = `toast ${type}`;
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(()=>t.remove(), 2800);
-}
-</script>
-</body>
-</html>
+};
