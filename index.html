@@ -66,7 +66,7 @@
         
         @media (max-width: 768px) { .header-content { flex-direction: column; } .info-grid { grid-template-columns: 1fr; } }
         
-        .btn-primary { background: #2a5298; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 50px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Cairo', sans-serif; font-size: 0.9rem; }
+        .btn-primary { background: #2a5298; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 50px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: 'Cairo', sans-serif; font-size: 0.9rem; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -121,6 +121,7 @@
     </footer>
 
     <script>
+        // المفتاح مضمن تلقائياً
         let apiKey = localStorage.getItem('scopusApiKey') || '408e8184e13814cbed5718b6573553eb';
         
         const apiKeyInput = document.getElementById('apiKeyInput');
@@ -194,13 +195,14 @@
             searchBtn.innerHTML = '<div class="loading-spinner"></div> جاري التحقق...';
             
             try {
-                // بناء استعلام Scopus Search API
+                // بناء استعلام Scopus Search API للبحث عن المجلات فقط
                 let query = '';
                 if (/^\d{4}-\d{3}[\dX]$/i.test(searchTerm) || /^\d{7,8}$/.test(searchTerm)) {
                     query = `ISSN(${searchTerm})`;
                 } else {
                     query = `SRCTITLE(${encodeURIComponent(searchTerm)})`;
                 }
+                // DOCTYPE(jn) = Journal فقط
                 query = `${query} AND DOCTYPE(jn)`;
                 
                 const url = `https://api.elsevier.com/content/search/scopus?query=${query}&count=1&sort=-coverDate&view=STANDARD`;
@@ -218,7 +220,9 @@
                 
                 if (!response.ok) {
                     if (response.status === 403) {
-                        throw new Error('مطلوب تفعيل CORS proxy أولاً. انظر التعليمات أدناه');
+                        throw new Error('CORS_PROXY_NEEDED');
+                    } else if (response.status === 401) {
+                        throw new Error('مفتاح API غير صالح');
                     }
                     throw new Error(`خطأ ${response.status}: ${response.statusText}`);
                 }
@@ -244,30 +248,33 @@
             } catch (error) {
                 console.error('Error:', error);
                 
-                let errorHtml = `
-                    <div class="no-results">
-                        <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#f44336;"></i>
-                        <h3>حدث خطأ</h3>
-                        <p>${escapeHtml(error.message)}</p>
-                `;
-                
-                if (error.message.includes('403') || error.message.includes('CORS')) {
-                    errorHtml += `
-                        <div class="cors-box" style="margin-top:1.5rem;">
-                            <i class="fas fa-shield-alt"></i>
-                            <strong>لحل مشكلة الاتصال:</strong>
-                            <ol style="text-align:right; margin-top:0.8rem; padding-right:1.5rem;">
-                                <li>افتح الرابط: <a href="https://cors-anywhere.herokuapp.com/" target="_blank">https://cors-anywhere.herokuapp.com/</a></li>
-                                <li>اضغط على زر "Request temporary access to the demo server"</li>
-                                <li>عد إلى هذه الصفحة واضغط F5 للتحديث</li>
-                                <li>جرب البحث مرة أخرى</li>
-                            </ol>
+                if (error.message === 'CORS_PROXY_NEEDED') {
+                    resultContainer.innerHTML = `
+                        <div class="no-results">
+                            <i class="fas fa-shield-alt" style="font-size:3rem; color:#f44336;"></i>
+                            <h3 style="margin:1rem 0;">مطلوب تفعيل CORS Proxy</h3>
+                            <div class="cors-box">
+                                <p><strong>لحل هذه المشكلة (مرة واحدة فقط):</strong></p>
+                                <ol style="text-align:right; margin:1rem 0 0 2rem;">
+                                    <li>افتح الرابط: <a href="https://cors-anywhere.herokuapp.com/" target="_blank">https://cors-anywhere.herokuapp.com/</a></li>
+                                    <li>اضغط على زر <strong>"Request temporary access to the demo server"</strong></li>
+                                    <li>عد إلى هذه الصفحة واضغط <strong>F5</strong> للتحديث</li>
+                                    <li>جرب البحث مرة أخرى</li>
+                                </ol>
+                                <p style="margin-top:1rem; color:#666;">⚠️ هذا مطلوب مرة واحدة فقط، بعدها سيعمل الموقع مباشرة</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultContainer.innerHTML = `
+                        <div class="no-results">
+                            <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#f44336;"></i>
+                            <h3>حدث خطأ</h3>
+                            <p>${escapeHtml(error.message)}</p>
+                            <p style="margin-top:1rem; color:#666;">تأكد من صحة المفتاح ومن اتصال الإنترنت</p>
                         </div>
                     `;
                 }
-                
-                errorHtml += `</div>`;
-                resultContainer.innerHTML = errorHtml;
                 showMessage(error.message, 'error');
             } finally {
                 searchBtn.disabled = false;
@@ -305,7 +312,7 @@
                         <div class="info-item"><div class="info-label"><i class="fas fa-chart-line"></i> عدد الاستشهادات</div><div class="info-value">${journal.citedby}</div></div>
                     </div>
                     <div style="margin-top:1.5rem; text-align:center;">
-                        <button class="btn-primary" onclick="window.open('${journal.url}', '_blank')"><i class="fab fa-scopus"></i> عرض في Scopus</button>
+                        <a class="btn-primary" href="${journal.url}" target="_blank" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;"><i class="fab fa-scopus"></i> عرض في Scopus</a>
                     </div>
                 </div>
             `;
